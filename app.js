@@ -14,6 +14,7 @@ const POPULAR = [
 // ---------------- 설정 ----------------
 const FIELDS = ["prepare", "work", "rest", "rounds", "sets", "setrest"];
 let exercises = []; // [{name, dur}] — 비어 있으면 단일 "운동" 모드
+let exDurMemo = {}; // 운동 이름 → 마지막 사용 시간 (삭제 후 재추가 시 복원)
 
 function readForm() {
   const cfg = {};
@@ -35,13 +36,14 @@ function writeForm(cfg) {
 }
 function saveSettings() {
   const opts = { sound: $("#optSound").checked, voice: $("#optVoice").checked, wake: $("#optWake").checked };
-  localStorage.setItem("interval.cfg", JSON.stringify({ ...readForm(), ...opts, v: 2 }));
+  localStorage.setItem("interval.cfg", JSON.stringify({ ...readForm(), ...opts, exmem: exDurMemo, v: 2 }));
 }
 function loadSettings() {
   try {
     const saved = JSON.parse(localStorage.getItem("interval.cfg"));
     if (!saved) return;
     writeForm(saved);
+    if (saved.exmem) exDurMemo = saved.exmem;
     if (saved.sound != null) $("#optSound").checked = saved.sound;
     // v2 이전 저장본은 음성 안내가 기본 꺼짐이었으므로 한 번 켜 준다
     if (saved.v >= 2 && saved.voice != null) $("#optVoice").checked = saved.voice;
@@ -73,16 +75,17 @@ function renderExList() {
 function addExercise(name) {
   name = name.trim();
   if (!name || exercises.length >= 20) return;
-  exercises.push({ name, dur: parseInt($("#work").value, 10) || 30 });
+  exercises.push({ name, dur: exDurMemo[name] || parseInt($("#work").value, 10) || 30 });
   renderExList(); updateTotal(); saveSettings();
 }
 $("#exList").addEventListener("click", (e) => {
   const btn = e.target.closest("button[data-act]");
   if (!btn) return;
   const i = parseInt(btn.dataset.i, 10), act = btn.dataset.act;
-  if (act === "del") exercises.splice(i, 1);
+  if (act === "del") { exDurMemo[exercises[i].name] = exercises[i].dur; exercises.splice(i, 1); }
   else if (act === "minus") exercises[i].dur = Math.max(5, exercises[i].dur - 5);
   else if (act === "plus") exercises[i].dur = Math.min(600, exercises[i].dur + 5);
+  if (act === "minus" || act === "plus") exDurMemo[exercises[i].name] = exercises[i].dur;
   renderExList(); updateTotal(); saveSettings();
 });
 // 드래그로 순서 변경 (포인터 이벤트 — 터치/마우스 공용)
@@ -455,7 +458,7 @@ function render(remainMs) {
 
   // 링: 현재 페이즈 진행률
   const frac = ph.dur > 0 ? remainMs / (ph.dur * 1000) : 0;
-  $("#ringFg").style.strokeDashoffset = CIRC * (1 - Math.min(1, Math.max(0, frac)));
+  $("#ringFg").style.strokeDashoffset = -CIRC * (1 - Math.min(1, Math.max(0, frac)));
 
   // 전체 진행률
   const elapsed = state.elapsedBefore + (ph.dur - remainMs / 1000);
@@ -484,11 +487,6 @@ $$(".step").forEach(btn => btn.addEventListener("click", () => {
 }));
 $("#form").addEventListener("input", () => { updateTotal(); saveSettings(); });
 $$(".opt input").forEach(el => el.addEventListener("change", saveSettings));
-
-$$("#presets .chip").forEach(chip => chip.addEventListener("click", () => {
-  writeForm(JSON.parse(chip.dataset.preset)); // 운동 목록은 유지, 시간만 변경
-  saveSettings();
-}));
 
 document.addEventListener("keydown", (e) => {
   if (e.target.tagName === "INPUT" && e.code !== "Escape") return;

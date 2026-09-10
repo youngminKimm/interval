@@ -20,7 +20,6 @@ body{
 .top h1{margin:0; font-size:1.5rem}
 .top .sub{margin:4px 0 0; color:var(--dim); font-size:.85rem}
 
-.presets{display:flex; flex-wrap:wrap; gap:8px}
 .chip{
   background:var(--card2); color:var(--text); border:1px solid var(--line);
   border-radius:99px; padding:8px 14px; font-size:.82rem; cursor:pointer;
