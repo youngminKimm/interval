@@ -148,3 +148,7 @@ body.paused .time-label{animation:blink 1.2s step-end infinite}
 .ex-chips{display:flex; flex-wrap:wrap; gap:6px}
 .ex-chips .chip{padding:6px 11px; font-size:.78rem}
 .ex-note{margin:0; font-size:.7rem; color:var(--dim)}
+
+.ex-row .handle{cursor:grab; touch-action:none; color:var(--dim); user-select:none; -webkit-user-select:none; border:none; background:transparent; font-size:1.05rem}
+.ex-row.dragging{border-color:var(--work); opacity:.88; box-shadow:0 4px 14px rgba(0,0,0,.4)}
+.ex-row.dragging .handle{cursor:grabbing}

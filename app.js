@@ -56,8 +56,9 @@ function renderExList() {
   exercises.forEach((ex, i) => {
     const row = document.createElement("div");
     row.className = "ex-row";
+    row.dataset.idx = i;
     row.innerHTML =
-      '<button type="button" class="mini" data-act="up" data-i="' + i + '"' + (i === 0 ? " disabled" : "") + '>↑</button>' +
+      '<span class="mini handle" title="드래그해서 순서 변경">⠿</span>' +
       '<span class="ex-name"></span>' +
       '<button type="button" class="mini" data-act="minus" data-i="' + i + '">−</button>' +
       '<span class="ex-dur">' + ex.dur + '<small>초</small></span>' +
@@ -80,11 +81,42 @@ $("#exList").addEventListener("click", (e) => {
   if (!btn) return;
   const i = parseInt(btn.dataset.i, 10), act = btn.dataset.act;
   if (act === "del") exercises.splice(i, 1);
-  else if (act === "up" && i > 0) [exercises[i - 1], exercises[i]] = [exercises[i], exercises[i - 1]];
   else if (act === "minus") exercises[i].dur = Math.max(5, exercises[i].dur - 5);
   else if (act === "plus") exercises[i].dur = Math.min(600, exercises[i].dur + 5);
   renderExList(); updateTotal(); saveSettings();
 });
+// 드래그로 순서 변경 (포인터 이벤트 — 터치/마우스 공용)
+let drag = null;
+$("#exList").addEventListener("pointerdown", (e) => {
+  const h = e.target.closest(".handle");
+  if (!h) return;
+  e.preventDefault();
+  drag = { row: h.closest(".ex-row") };
+  drag.row.classList.add("dragging");
+  try { h.setPointerCapture(e.pointerId); } catch (err) {}
+});
+$("#exList").addEventListener("pointermove", (e) => {
+  if (!drag) return;
+  const list = $("#exList");
+  const others = [...list.children].filter(r => r !== drag.row);
+  const before = others.find(r => {
+    const b = r.getBoundingClientRect();
+    return e.clientY < b.top + b.height / 2;
+  });
+  if (before) list.insertBefore(drag.row, before);
+  else list.appendChild(drag.row);
+});
+function endDrag() {
+  if (!drag) return;
+  drag.row.classList.remove("dragging");
+  const order = [...$("#exList").children].map(r => parseInt(r.dataset.idx, 10));
+  exercises = order.map(i => exercises[i]);
+  drag = null;
+  renderExList(); updateTotal(); saveSettings();
+}
+$("#exList").addEventListener("pointerup", endDrag);
+$("#exList").addEventListener("pointercancel", endDrag);
+
 $("#exAddBtn").addEventListener("click", () => { addExercise($("#exName").value); $("#exName").value = ""; });
 $("#exName").addEventListener("keydown", (e) => {
   if (e.code === "Enter") { e.preventDefault(); addExercise($("#exName").value); $("#exName").value = ""; }
