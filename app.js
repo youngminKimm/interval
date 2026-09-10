@@ -62,7 +62,7 @@ function renderExList() {
       '<span class="mini handle" title="드래그해서 순서 변경">⠿</span>' +
       '<span class="ex-name"></span>' +
       '<button type="button" class="mini" data-act="minus" data-i="' + i + '">−</button>' +
-      '<span class="ex-dur">' + ex.dur + '<small>초</small></span>' +
+      '<input class="ex-dur-in" type="number" inputmode="numeric" min="5" max="600" data-i="' + i + '" value="' + ex.dur + '"><small class="ex-unit">초</small>' +
       '<button type="button" class="mini" data-act="plus" data-i="' + i + '">+</button>' +
       '<button type="button" class="mini del" data-act="del" data-i="' + i + '">×</button>';
     row.querySelector(".ex-name").textContent = (i + 1) + ". " + ex.name;
@@ -118,6 +118,23 @@ function endDrag() {
 }
 $("#exList").addEventListener("pointerup", endDrag);
 $("#exList").addEventListener("pointercancel", endDrag);
+
+// 운동별 초 수동 입력
+$("#exList").addEventListener("change", (e) => {
+  const inp = e.target.closest(".ex-dur-in");
+  if (!inp) return;
+  const i = parseInt(inp.dataset.i, 10);
+  let v = parseInt(inp.value, 10);
+  if (isNaN(v)) v = exercises[i].dur;
+  v = Math.max(5, Math.min(600, v));
+  exercises[i].dur = v;
+  exDurMemo[exercises[i].name] = v;
+  renderExList(); updateTotal(); saveSettings();
+});
+$("#exList").addEventListener("focusin", (e) => {
+  const inp = e.target.closest(".ex-dur-in");
+  if (inp) setTimeout(() => inp.select(), 0);
+});
 
 $("#exAddBtn").addEventListener("click", () => { addExercise($("#exName").value); $("#exName").value = ""; });
 $("#exName").addEventListener("keydown", (e) => {
