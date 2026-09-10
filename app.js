@@ -23,8 +23,7 @@ function readForm() {
     let v = parseInt(el.value, 10);
     if (isNaN(v)) v = parseInt(el.min, 10) || 0;
     v = Math.max(parseInt(el.min, 10) || 0, Math.min(parseInt(el.max, 10) || 9999, v));
-    el.value = v;
-    cfg[f] = v;
+    cfg[f] = v; // 타이핑 중에는 입력창을 건드리지 않는다 (blur 시 정리)
   }
   cfg.exercises = exercises.map(e => ({ name: e.name, dur: e.dur }));
   return cfg;
@@ -489,6 +488,18 @@ $$(".step").forEach(btn => btn.addEventListener("click", () => {
   saveSettings();
 }));
 $("#form").addEventListener("input", () => { updateTotal(); saveSettings(); });
+// 클릭/포커스하면 기존 숫자가 통째로 선택돼 바로 새 값을 입력할 수 있게
+$$(".stepper input").forEach(el => {
+  el.addEventListener("focus", () => setTimeout(() => el.select(), 0));
+  el.addEventListener("change", () => { // 입력이 끝나면 범위에 맞게 정리해서 표시
+    let v = parseInt(el.value, 10);
+    if (isNaN(v)) v = parseInt(el.min, 10) || 0;
+    v = Math.max(parseInt(el.min, 10) || 0, Math.min(parseInt(el.max, 10) || 9999, v));
+    el.value = v;
+    updateTotal();
+    saveSettings();
+  });
+});
 $$(".opt input").forEach(el => el.addEventListener("change", saveSettings));
 
 document.addEventListener("keydown", (e) => {
