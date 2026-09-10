@@ -39,10 +39,12 @@ body{
 .field[data-phasecolor="setrest"] label{color:var(--setrest)}
 .stepper{display:flex; align-items:center; gap:6px}
 .stepper input{
-  flex:1; width:100%; text-align:center; font-size:1.25rem; font-weight:700;
-  background:transparent; border:none; color:var(--text); outline:none;
+  flex:1; width:100%; min-width:0; text-align:center; font-size:1.25rem; font-weight:700;
+  background:var(--bg); border:1px solid var(--line); border-radius:10px; height:38px;
+  color:var(--text); outline:none;
   font-variant-numeric:tabular-nums; -moz-appearance:textfield; appearance:textfield;
 }
+.stepper input:focus{border-color:var(--work)}
 .stepper input::-webkit-outer-spin-button,.stepper input::-webkit-inner-spin-button{-webkit-appearance:none; margin:0}
 .step{
   width:38px; height:38px; border-radius:10px; border:1px solid var(--line);
@@ -129,12 +131,14 @@ body.paused .time-label{animation:blink 1.2s step-end infinite}
 .ex-row{display:flex; align-items:center; gap:6px; background:var(--card2); border:1px solid var(--line); border-radius:10px; padding:6px 8px}
 .ex-row .ex-name{flex:1; font-size:.92rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 .ex-dur-in{
-  width:44px; text-align:center; font-weight:700; font-variant-numeric:tabular-nums; font-size:.95rem;
-  background:transparent; border:none; color:var(--text); outline:none; padding:0;
+  width:52px; height:30px; text-align:center; font-weight:700; font-variant-numeric:tabular-nums; font-size:.95rem;
+  background:var(--bg); border:1px solid var(--line); border-radius:8px;
+  color:var(--text); outline:none; padding:0;
   -moz-appearance:textfield; appearance:textfield; flex:none;
 }
+.ex-dur-in:focus{border-color:var(--work)}
 .ex-dur-in::-webkit-outer-spin-button,.ex-dur-in::-webkit-inner-spin-button{-webkit-appearance:none; margin:0}
-.ex-unit{color:var(--dim); font-size:.7rem; flex:none; margin-left:-4px}
+.ex-unit{color:var(--dim); font-size:.7rem; flex:none}
 .mini{
   width:30px; height:30px; border-radius:8px; border:1px solid var(--line);
   background:var(--card); color:var(--text); font-size:.95rem; cursor:pointer; flex:none;
