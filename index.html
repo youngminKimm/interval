@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>인터벌 타이머</title>
+<meta name="description" content="유튜브 보면서 쓰는 심플 인터벌 운동 타이머">
+<link rel="stylesheet" href="style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⏱️</text></svg>">
+</head>
+<body data-phase="idle">
+
+<main class="app">
+
+  <!-- ============ 설정 화면 ============ -->
+  <section id="setup" class="screen">
+    <header class="top">
+      <h1>⏱️ 인터벌 타이머</h1>
+      <p class="sub">설정하고 유튜브 틀어놓고 운동하세요 — 소리가 타이밍을 알려줍니다</p>
+    </header>
+
+    <div class="presets" id="presets">
+      <button class="chip" data-preset='{"prepare":10,"work":20,"rest":10,"rounds":8,"sets":1,"setrest":60}'>타바타 20/10×8</button>
+      <button class="chip" data-preset='{"prepare":10,"work":30,"rest":15,"rounds":10,"sets":1,"setrest":60}'>30/15×10</button>
+      <button class="chip" data-preset='{"prepare":10,"work":40,"rest":20,"rounds":8,"sets":2,"setrest":90}'>40/20×8 ×2세트</button>
+      <button class="chip" data-preset='{"prepare":10,"work":60,"rest":30,"rounds":5,"sets":1,"setrest":60}'>1분/30초×5</button>
+    </div>
+
+    <form id="form" autocomplete="off">
+      <div class="field" data-phasecolor="prepare">
+        <label for="prepare">준비 (초)</label>
+        <div class="stepper">
+          <button type="button" class="step" data-for="prepare" data-d="-5">−</button>
+          <input id="prepare" type="number" inputmode="numeric" min="0" max="300" step="5" value="10">
+          <button type="button" class="step" data-for="prepare" data-d="5">+</button>
+        </div>
+      </div>
+
+      <div class="field" data-phasecolor="work">
+        <label for="work">운동 (초)</label>
+        <div class="stepper">
+          <button type="button" class="step" data-for="work" data-d="-5">−</button>
+          <input id="work" type="number" inputmode="numeric" min="5" max="3600" step="5" value="30">
+          <button type="button" class="step" data-for="work" data-d="5">+</button>
+        </div>
+      </div>
+
+      <div class="field" data-phasecolor="rest">
+        <label for="rest">휴식 (초)</label>
+        <div class="stepper">
+          <button type="button" class="step" data-for="rest" data-d="-5">−</button>
+          <input id="rest" type="number" inputmode="numeric" min="0" max="3600" step="5" value="15">
+          <button type="button" class="step" data-for="rest" data-d="5">+</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="rounds">라운드</label>
+        <div class="stepper">
+          <button type="button" class="step" data-for="rounds" data-d="-1">−</button>
+          <input id="rounds" type="number" inputmode="numeric" min="1" max="99" step="1" value="8">
+          <button type="button" class="step" data-for="rounds" data-d="1">+</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="sets">세트</label>
+        <div class="stepper">
+          <button type="button" class="step" data-for="sets" data-d="-1">−</button>
+          <input id="sets" type="number" inputmode="numeric" min="1" max="20" step="1" value="1">
+          <button type="button" class="step" data-for="sets" data-d="1">+</button>
+        </div>
+      </div>
+
+      <div class="field" data-phasecolor="setrest" id="setrestField">
+        <label for="setrest">세트 간 휴식 (초)</label>
+        <div class="stepper">
+          <button type="button" class="step" data-for="setrest" data-d="-10">−</button>
+          <input id="setrest" type="number" inputmode="numeric" min="0" max="3600" step="10" value="60">
+          <button type="button" class="step" data-for="setrest" data-d="10">+</button>
+        </div>
+      </div>
+    </form>
+
+    <div class="total">총 운동 시간 <strong id="totalTime">-</strong></div>
+
+    <button id="startBtn" class="big-btn">시작</button>
+
+    <div class="options">
+      <label class="opt"><input type="checkbox" id="optSound" checked> 🔔 효과음</label>
+      <label class="opt"><input type="checkbox" id="optVoice"> 🗣️ 음성 안내</label>
+      <label class="opt"><input type="checkbox" id="optWake" checked> ☀️ 화면 켜짐 유지</label>
+    </div>
+    <p class="hint">단축키 — <kbd>Space</kbd> 시작/일시정지 · <kbd>←</kbd><kbd>→</kbd> 이전/다음 · <kbd>Esc</kbd> 정지</p>
+  </section>
+
+  <!-- ============ 타이머 화면 ============ -->
+  <section id="run" class="screen" hidden>
+    <div class="run-head">
+      <span id="setLabel" class="pill"></span>
+      <span id="roundLabel" class="pill"></span>
+    </div>
+
+    <div class="ring-wrap">
+      <svg class="ring" viewBox="0 0 100 100">
+        <circle class="ring-bg" cx="50" cy="50" r="45"/>
+        <circle class="ring-fg" id="ringFg" cx="50" cy="50" r="45"/>
+      </svg>
+      <div class="ring-center">
+        <div id="phaseLabel" class="phase-label">준비</div>
+        <div id="timeLabel" class="time-label">10</div>
+        <div id="nextLabel" class="next-label"></div>
+      </div>
+    </div>
+
+    <div class="progress">
+      <div class="progress-bar" id="progressBar"></div>
+    </div>
+    <div class="elapsed"><span id="elapsedLabel">0:00</span> / <span id="totalLabel">0:00</span></div>
+
+    <div class="controls">
+      <button id="prevBtn" class="ctl" title="이전 (←)">⏮</button>
+      <button id="pauseBtn" class="ctl main" title="일시정지 (Space)">⏸</button>
+      <button id="nextBtn" class="ctl" title="다음 (→)">⏭</button>
+    </div>
+    <button id="stopBtn" class="stop-btn">정지</button>
+  </section>
+
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

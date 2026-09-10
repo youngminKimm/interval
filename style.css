@@ -1,0 +1,121 @@
+:root{
+  --bg:#0f1115; --card:#191d24; --card2:#20252e; --line:#2b313c;
+  --text:#eef1f6; --dim:#8a93a3;
+  --prepare:#f5b942; --work:#3ddc84; --rest:#4aa8ff; --setrest:#b07aff; --done:#e8e8e8;
+  --accent:var(--work);
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+html,body{margin:0; padding:0}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Segoe UI",Roboto,sans-serif;
+  min-height:100dvh; display:flex; justify-content:center;
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+.app{width:100%; max-width:480px; padding:20px 16px 32px}
+.screen{display:flex; flex-direction:column; gap:14px}
+.screen[hidden]{display:none}
+
+/* ---------- 설정 화면 ---------- */
+.top h1{margin:0; font-size:1.5rem}
+.top .sub{margin:4px 0 0; color:var(--dim); font-size:.85rem}
+
+.presets{display:flex; flex-wrap:wrap; gap:8px}
+.chip{
+  background:var(--card2); color:var(--text); border:1px solid var(--line);
+  border-radius:99px; padding:8px 14px; font-size:.82rem; cursor:pointer;
+}
+.chip:active{transform:scale(.96)}
+.chip.saved{border-color:var(--work)}
+
+#form{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+.field{
+  background:var(--card); border:1px solid var(--line); border-radius:14px;
+  padding:12px; display:flex; flex-direction:column; gap:8px;
+}
+.field label{font-size:.8rem; color:var(--dim)}
+.field[data-phasecolor="prepare"] label{color:var(--prepare)}
+.field[data-phasecolor="work"] label{color:var(--work)}
+.field[data-phasecolor="rest"] label{color:var(--rest)}
+.field[data-phasecolor="setrest"] label{color:var(--setrest)}
+.stepper{display:flex; align-items:center; gap:6px}
+.stepper input{
+  flex:1; width:100%; text-align:center; font-size:1.25rem; font-weight:700;
+  background:transparent; border:none; color:var(--text); outline:none;
+  font-variant-numeric:tabular-nums; -moz-appearance:textfield; appearance:textfield;
+}
+.stepper input::-webkit-outer-spin-button,.stepper input::-webkit-inner-spin-button{-webkit-appearance:none; margin:0}
+.step{
+  width:38px; height:38px; border-radius:10px; border:1px solid var(--line);
+  background:var(--card2); color:var(--text); font-size:1.2rem; cursor:pointer; flex:none;
+}
+.step:active{background:var(--line)}
+
+.total{text-align:center; color:var(--dim); font-size:.95rem}
+.total strong{color:var(--text); font-variant-numeric:tabular-nums}
+
+.big-btn{
+  background:var(--work); color:#08130c; border:none; border-radius:16px;
+  font-size:1.3rem; font-weight:800; padding:16px; cursor:pointer;
+}
+.big-btn:active{transform:scale(.98)}
+
+.options{display:flex; justify-content:center; gap:14px; flex-wrap:wrap}
+.opt{font-size:.85rem; color:var(--dim); display:flex; align-items:center; gap:6px; cursor:pointer}
+.opt input{accent-color:var(--work); width:16px; height:16px}
+.hint{text-align:center; color:var(--dim); font-size:.72rem; margin:0}
+kbd{background:var(--card2); border:1px solid var(--line); border-radius:4px; padding:1px 5px; font-size:.7rem}
+
+/* ---------- 타이머 화면 ---------- */
+body[data-phase="prepare"]{--accent:var(--prepare)}
+body[data-phase="work"]{--accent:var(--work)}
+body[data-phase="rest"]{--accent:var(--rest)}
+body[data-phase="setrest"]{--accent:var(--setrest)}
+body[data-phase="done"]{--accent:var(--done)}
+
+#run{align-items:center; text-align:center}
+.run-head{display:flex; gap:8px}
+.pill{
+  background:var(--card); border:1px solid var(--line); border-radius:99px;
+  padding:6px 14px; font-size:.85rem; color:var(--dim); font-variant-numeric:tabular-nums;
+}
+
+.ring-wrap{position:relative; width:min(78vw,340px); aspect-ratio:1; margin:6px 0}
+.ring{width:100%; height:100%; transform:rotate(-90deg)}
+.ring-bg,.ring-fg{fill:none; stroke-width:6; stroke-linecap:round}
+.ring-bg{stroke:var(--card2)}
+.ring-fg{stroke:var(--accent); stroke-dasharray:282.74; stroke-dashoffset:0; transition:stroke .3s}
+.ring-center{
+  position:absolute; inset:0; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:2px;
+}
+.phase-label{font-size:1.3rem; font-weight:700; color:var(--accent); transition:color .3s}
+.time-label{
+  font-size:clamp(3.5rem,22vw,5.5rem); font-weight:800; line-height:1;
+  font-variant-numeric:tabular-nums; letter-spacing:-.02em;
+}
+.next-label{font-size:.85rem; color:var(--dim); min-height:1.2em}
+
+.progress{width:100%; height:6px; background:var(--card2); border-radius:99px; overflow:hidden}
+.progress-bar{height:100%; width:0; background:var(--accent); border-radius:99px; transition:stroke .3s}
+.elapsed{color:var(--dim); font-size:.85rem; font-variant-numeric:tabular-nums}
+
+.controls{display:flex; gap:14px; align-items:center; margin-top:4px}
+.ctl{
+  width:58px; height:58px; border-radius:50%; border:1px solid var(--line);
+  background:var(--card); color:var(--text); font-size:1.3rem; cursor:pointer;
+}
+.ctl.main{width:76px; height:76px; font-size:1.7rem; background:var(--accent); color:#0b0d10; border:none; transition:background .3s}
+.ctl:active{transform:scale(.94)}
+.stop-btn{
+  background:transparent; border:1px solid var(--line); color:var(--dim);
+  border-radius:99px; padding:10px 28px; font-size:.9rem; cursor:pointer; margin-top:4px;
+}
+
+/* 일시정지 시 깜빡임 */
+body.paused .time-label{animation:blink 1.2s step-end infinite}
+@keyframes blink{50%{opacity:.25}}
+
+@media (min-width:480px){
+  .app{padding-top:40px}
+}
