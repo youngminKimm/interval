@@ -181,3 +181,12 @@ body.paused .time-label{animation:blink 1.2s step-end infinite}
   opacity:0; pointer-events:none; transition:opacity .25s, transform .25s; z-index:9;
 }
 #toast.show{opacity:1; transform:translateX(-50%) translateY(0)}
+
+.rt-btns{display:flex; gap:6px}
+.mini[hidden]{display:none}
+.rt-row.active{border-color:var(--rest)}
+.rt-name{display:flex; align-items:center; gap:6px; min-width:0}
+.rt-name-text{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.rt-badge{font-size:.66rem; color:var(--rest); border:1px solid var(--rest); border-radius:99px; padding:1px 7px; flex:none}
+.rt-badge:empty{display:none}
+.rt-badge.mod{color:var(--prepare); border-color:var(--prepare)}

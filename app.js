@@ -36,6 +36,7 @@ function writeForm(cfg) {
 function saveSettings() {
   const opts = { sound: $("#optSound").checked, voice: $("#optVoice").checked, wake: $("#optWake").checked };
   localStorage.setItem("interval.cfg", JSON.stringify({ ...readForm(), ...opts, exmem: exDurMemo, v: 2 }));
+  if (typeof updateActiveState === "function" && $("#routineList")) updateActiveState();
 }
 function loadSettings() {
   try {
@@ -551,6 +552,14 @@ function routineMeta(cfg) {
   const n = cfg.exercises ? cfg.exercises.length : 0;
   return t + (n ? " · 운동 " + n + "개" : "") + " · " + cfg.rounds + "라운드" + (cfg.sets > 1 ? " × " + cfg.sets + "세트" : "");
 }
+function fmtDate(ms) {
+  if (!ms) return "";
+  const d = new Date(ms), now = new Date();
+  const hm = String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+  if (d.toDateString() === now.toDateString()) return "오늘 " + hm;
+  const md = (d.getMonth() + 1) + "/" + d.getDate();
+  return (d.getFullYear() === now.getFullYear() ? md : d.getFullYear() + "." + md) + " " + hm;
+}
 function renderRoutines() {
   const list = $("#routineList");
   const routines = getRoutines();
@@ -559,14 +568,43 @@ function renderRoutines() {
   routines.forEach((r, i) => {
     const row = document.createElement("div");
     row.className = "rt-row";
+    row.dataset.name = r.name;
     row.innerHTML =
-      '<div class="rt-info"><div class="rt-name"></div><div class="rt-meta"></div></div>' +
+      '<div class="rt-info"><div class="rt-name"><span class="rt-name-text"></span><span class="rt-badge"></span></div><div class="rt-meta"></div></div>' +
+      '<button type="button" class="mini" data-rt="ren" data-i="' + i + '" title="이름 변경">✎</button>' +
       '<button type="button" class="mini" data-rt="share" data-i="' + i + '" title="공유 링크">🔗</button>' +
       '<button type="button" class="mini del" data-rt="del" data-i="' + i + '">×</button>';
-    row.querySelector(".rt-name").textContent = r.name;
-    row.querySelector(".rt-meta").textContent = routineMeta(r.cfg);
+    row.querySelector(".rt-name-text").textContent = r.name;
+    row.querySelector(".rt-meta").textContent = routineMeta(r.cfg) + (r.savedAt ? " · " + fmtDate(r.savedAt) : "");
     list.appendChild(row);
   });
+  updateActiveState();
+}
+// 지금 불러와서 쓰고 있는 루틴 추적
+let activeRoutineName = localStorage.getItem("interval.activeRoutine") || null;
+let sharedName = null; // 공유 링크로 받은 루틴 이름 (새로 저장 시 기본값)
+function setActiveRoutine(name) {
+  activeRoutineName = name;
+  if (name) localStorage.setItem("interval.activeRoutine", name);
+  else localStorage.removeItem("interval.activeRoutine");
+  updateActiveState();
+}
+function activeRoutine() {
+  return getRoutines().find(r => r.name === activeRoutineName) || null;
+}
+function updateActiveState() {
+  const active = activeRoutine();
+  const modified = active && JSON.stringify(readForm()) !== JSON.stringify(active.cfg);
+  $$(".rt-row").forEach(row => {
+    const isA = active && row.dataset.name === active.name;
+    row.classList.toggle("active", !!isA);
+    const b = row.querySelector(".rt-badge");
+    b.textContent = isA ? (modified ? "수정됨" : "사용 중") : "";
+    b.classList.toggle("mod", !!(isA && modified));
+  });
+  const short = active && (active.name.length > 8 ? active.name.slice(0, 8) + "…" : active.name);
+  $("#routineSaveBtn").textContent = active ? '"' + short + '" 저장' : "현재 구성 저장";
+  $("#routineSaveNewBtn").hidden = !active;
 }
 let toastTimer = null;
 function toast(msg) {
@@ -595,29 +633,54 @@ async function shareRoutine(r) {
   try { await navigator.clipboard.writeText(url); toast("공유 링크가 복사되었습니다"); }
   catch (e) { window.prompt("이 링크를 복사해서 보내세요", url); }
 }
-$("#routineSaveBtn").addEventListener("click", () => {
+function saveRoutineAs() {
   const routines = getRoutines();
-  const name = (window.prompt("루틴 이름", "루틴 " + (routines.length + 1)) || "").trim();
+  const name = (window.prompt("루틴 이름", sharedName || "루틴 " + (routines.length + 1)) || "").trim();
   if (!name) return;
-  const cfg = readForm();
+  const entry = { name, cfg: readForm(), savedAt: Date.now() };
   const idx = routines.findIndex(r => r.name === name);
-  if (idx >= 0) routines[idx] = { name, cfg }; else routines.push({ name, cfg });
+  if (idx >= 0) routines[idx] = entry; else routines.push(entry);
   setRoutines(routines);
+  setActiveRoutine(name);
   toast('"' + name + '" 루틴 저장됨');
+}
+$("#routineSaveBtn").addEventListener("click", () => {
+  const active = activeRoutine();
+  if (!active) { saveRoutineAs(); return; }
+  const routines = getRoutines();
+  const idx = routines.findIndex(r => r.name === active.name);
+  routines[idx] = { name: active.name, cfg: readForm(), savedAt: Date.now() };
+  setRoutines(routines);
+  toast('"' + active.name + '" 업데이트됨');
 });
+$("#routineSaveNewBtn").addEventListener("click", saveRoutineAs);
 $("#routineList").addEventListener("click", (e) => {
   const routines = getRoutines();
   const btn = e.target.closest("button[data-rt]");
   if (btn) {
     const i = parseInt(btn.dataset.i, 10);
-    if (btn.dataset.rt === "del") { const gone = routines.splice(i, 1)[0]; setRoutines(routines); toast('"' + gone.name + '" 삭제됨'); }
-    else shareRoutine(routines[i]);
+    if (btn.dataset.rt === "del") {
+      const gone = routines.splice(i, 1)[0];
+      if (gone.name === activeRoutineName) setActiveRoutine(null);
+      setRoutines(routines);
+      toast('"' + gone.name + '" 삭제됨');
+    } else if (btn.dataset.rt === "ren") {
+      const cur = routines[i];
+      const name = (window.prompt("루틴 이름 변경", cur.name) || "").trim();
+      if (!name || name === cur.name) return;
+      if (routines.some((r, j) => j !== i && r.name === name)) { toast("같은 이름의 루틴이 이미 있습니다"); return; }
+      if (cur.name === activeRoutineName) setActiveRoutine(name);
+      cur.name = name;
+      setRoutines(routines);
+      toast('이름을 "' + name + '" 으로 변경했습니다');
+    } else shareRoutine(routines[i]);
     return;
   }
   const row = e.target.closest(".rt-row");
   if (!row) return;
   const i = [...$("#routineList").children].indexOf(row);
   writeForm(routines[i].cfg);
+  setActiveRoutine(routines[i].name);
   saveSettings();
   toast('"' + routines[i].name + '" 루틴을 불러왔습니다');
 });
@@ -628,6 +691,8 @@ function loadFromHash() {
   try {
     const { n, c } = decodeRoutine(m[1]);
     writeForm(c);
+    sharedName = n || null;
+    setActiveRoutine(null);
     saveSettings();
     toast(n ? '공유된 루틴 "' + n + '" 을 불러왔습니다' : "공유된 루틴을 불러왔습니다");
   } catch (e) { /* 잘못된 링크는 무시 */ }
