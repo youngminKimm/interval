@@ -35,7 +35,7 @@ function writeForm(cfg) {
 }
 function saveSettings() {
   const opts = { sound: $("#optSound").checked, voice: $("#optVoice").checked, wake: $("#optWake").checked };
-  localStorage.setItem("interval.cfg", JSON.stringify({ ...readForm(), ...opts }));
+  localStorage.setItem("interval.cfg", JSON.stringify({ ...readForm(), ...opts, v: 2 }));
 }
 function loadSettings() {
   try {
@@ -43,7 +43,8 @@ function loadSettings() {
     if (!saved) return;
     writeForm(saved);
     if (saved.sound != null) $("#optSound").checked = saved.sound;
-    if (saved.voice != null) $("#optVoice").checked = saved.voice;
+    // v2 이전 저장본은 음성 안내가 기본 꺼짐이었으므로 한 번 켜 준다
+    if (saved.v >= 2 && saved.voice != null) $("#optVoice").checked = saved.voice;
     if (saved.wake != null) $("#optWake").checked = saved.wake;
   } catch (e) { /* 무시 */ }
 }
@@ -213,19 +214,45 @@ function scheduleAllAudio() {
 }
 
 // ---------------- 음성 안내 ----------------
+let koVoice = null;
+function pickKoVoice() {
+  if (!("speechSynthesis" in window)) return;
+  const vs = speechSynthesis.getVoices();
+  koVoice = vs.find(v => v.lang && v.lang.toLowerCase().startsWith("ko")) || null;
+}
+if ("speechSynthesis" in window) {
+  pickKoVoice();
+  speechSynthesis.onvoiceschanged = pickKoVoice;
+}
 function speak(text) {
   if (!$("#optVoice").checked || !("speechSynthesis" in window)) return;
   speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(text);
   u.lang = "ko-KR";
-  u.rate = 1.1;
+  if (koVoice) u.voice = koVoice;
+  u.rate = 1.05;
   speechSynthesis.speak(u);
+}
+// 현재 인덱스 이후의 첫 번째 운동 페이즈
+function nextWorkAfter(idx) {
+  for (let i = idx + 1; i < state.phases.length; i++) {
+    if (state.phases[i].type === "work") return state.phases[i];
+  }
+  return null;
 }
 function announce(ph) {
   if (!ph) { speak("운동 완료! 수고하셨습니다"); return; }
-  if (ph.type === "work") {
-    const prefix = ph.exTotal > 1 && ph.exNo === 1 ? ph.round + "라운드, " : ph.exTotal === 1 ? ph.round + "라운드, " : "";
+  if (ph.type === "prepare") {
+    const first = nextWorkAfter(state.idx);
+    speak(first && first.name ? "준비하세요. 첫 운동은 " + first.name : "준비하세요. 곧 시작합니다");
+  } else if (ph.type === "work") {
+    const prefix = ph.exNo === 1 ? ph.round + "라운드. " : "";
     speak(prefix + workName(ph) + " 시작");
+  } else if (ph.type === "rest") {
+    const next = nextWorkAfter(state.idx);
+    speak(next && next.name ? "휴식. 다음은 " + next.name : "휴식");
+  } else if (ph.type === "setrest") {
+    speak(ph.set + "세트 완료. 세트 휴식");
   } else speak(LABEL[ph.type]);
 }
 
