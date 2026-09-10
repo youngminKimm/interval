@@ -90,6 +90,15 @@
       <p class="ex-note">1라운드 = 목록 전체를 순서대로 1회 (운동 사이에 휴식)</p>
     </div>
 
+    <div class="ex-section" id="routineSection">
+      <div class="ex-head">
+        <label>내 루틴</label>
+        <button type="button" id="routineSaveBtn" class="mini wide">현재 구성 저장</button>
+      </div>
+      <div id="routineList"></div>
+      <p class="ex-note" id="routineEmpty">저장된 루틴이 없습니다 — 구성을 만든 뒤 "현재 구성 저장"을 누르세요</p>
+    </div>
+
     <div class="total">총 운동 시간 <strong id="totalTime">-</strong></div>
 
     <button id="startBtn" class="big-btn">시작</button>
@@ -135,6 +144,7 @@
     <button id="stopBtn" class="stop-btn">정지</button>
   </section>
 
+  <div id="toast" role="status"></div>
 </main>
 
 <script src="app.js"></script>

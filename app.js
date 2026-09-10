@@ -537,6 +537,105 @@ $("#optSound").addEventListener("change", () => {
   if (state.running) scheduleAllAudio();
 });
 
+
+// ---------------- 내 루틴 (저장/불러오기/공유) ----------------
+function getRoutines() {
+  try { return JSON.parse(localStorage.getItem("interval.routines")) || []; } catch (e) { return []; }
+}
+function setRoutines(list) {
+  localStorage.setItem("interval.routines", JSON.stringify(list));
+  renderRoutines();
+}
+function routineMeta(cfg) {
+  const t = fmt(totalSec(buildPhases(cfg)));
+  const n = cfg.exercises ? cfg.exercises.length : 0;
+  return t + (n ? " · 운동 " + n + "개" : "") + " · " + cfg.rounds + "라운드" + (cfg.sets > 1 ? " × " + cfg.sets + "세트" : "");
+}
+function renderRoutines() {
+  const list = $("#routineList");
+  const routines = getRoutines();
+  list.innerHTML = "";
+  $("#routineEmpty").style.display = routines.length ? "none" : "";
+  routines.forEach((r, i) => {
+    const row = document.createElement("div");
+    row.className = "rt-row";
+    row.innerHTML =
+      '<div class="rt-info"><div class="rt-name"></div><div class="rt-meta"></div></div>' +
+      '<button type="button" class="mini" data-rt="share" data-i="' + i + '" title="공유 링크">🔗</button>' +
+      '<button type="button" class="mini del" data-rt="del" data-i="' + i + '">×</button>';
+    row.querySelector(".rt-name").textContent = r.name;
+    row.querySelector(".rt-meta").textContent = routineMeta(r.cfg);
+    list.appendChild(row);
+  });
+}
+let toastTimer = null;
+function toast(msg) {
+  const el = $("#toast");
+  el.textContent = msg;
+  el.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove("show"), 2200);
+}
+// URL 공유용 인코딩 (base64url + UTF-8)
+function encodeRoutine(r) {
+  const bytes = new TextEncoder().encode(JSON.stringify({ n: r.name, c: r.cfg }));
+  let bin = "";
+  bytes.forEach(b => bin += String.fromCharCode(b));
+  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+function decodeRoutine(s) {
+  const bin = atob(s.replace(/-/g, "+").replace(/_/g, "/"));
+  return JSON.parse(new TextDecoder().decode(Uint8Array.from(bin, ch => ch.charCodeAt(0))));
+}
+async function shareRoutine(r) {
+  const url = location.origin + location.pathname + "#r=" + encodeRoutine(r);
+  if (navigator.share) {
+    try { await navigator.share({ title: "인터벌 타이머 — " + r.name, url }); return; } catch (e) { if (e.name === "AbortError") return; }
+  }
+  try { await navigator.clipboard.writeText(url); toast("공유 링크가 복사되었습니다"); }
+  catch (e) { window.prompt("이 링크를 복사해서 보내세요", url); }
+}
+$("#routineSaveBtn").addEventListener("click", () => {
+  const routines = getRoutines();
+  const name = (window.prompt("루틴 이름", "루틴 " + (routines.length + 1)) || "").trim();
+  if (!name) return;
+  const cfg = readForm();
+  const idx = routines.findIndex(r => r.name === name);
+  if (idx >= 0) routines[idx] = { name, cfg }; else routines.push({ name, cfg });
+  setRoutines(routines);
+  toast('"' + name + '" 루틴 저장됨');
+});
+$("#routineList").addEventListener("click", (e) => {
+  const routines = getRoutines();
+  const btn = e.target.closest("button[data-rt]");
+  if (btn) {
+    const i = parseInt(btn.dataset.i, 10);
+    if (btn.dataset.rt === "del") { const gone = routines.splice(i, 1)[0]; setRoutines(routines); toast('"' + gone.name + '" 삭제됨'); }
+    else shareRoutine(routines[i]);
+    return;
+  }
+  const row = e.target.closest(".rt-row");
+  if (!row) return;
+  const i = [...$("#routineList").children].indexOf(row);
+  writeForm(routines[i].cfg);
+  saveSettings();
+  toast('"' + routines[i].name + '" 루틴을 불러왔습니다');
+});
+// 공유 링크(#r=...)로 열면 해당 루틴을 로드
+function loadFromHash() {
+  const m = location.hash.match(/^#r=([A-Za-z0-9\-_]+)/);
+  if (!m) return;
+  try {
+    const { n, c } = decodeRoutine(m[1]);
+    writeForm(c);
+    saveSettings();
+    toast(n ? '공유된 루틴 "' + n + '" 을 불러왔습니다' : "공유된 루틴을 불러왔습니다");
+  } catch (e) { /* 잘못된 링크는 무시 */ }
+}
+window.addEventListener("hashchange", loadFromHash);
+
 loadSettings();
 renderExList();
+renderRoutines();
+loadFromHash();
 updateTotal();

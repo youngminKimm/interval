@@ -160,3 +160,24 @@ body.paused .time-label{animation:blink 1.2s step-end infinite}
 .ex-row .handle{cursor:grab; touch-action:none; color:var(--dim); user-select:none; -webkit-user-select:none; border:none; background:transparent; font-size:1.05rem}
 .ex-row.dragging{border-color:var(--work); opacity:.88; box-shadow:0 4px 14px rgba(0,0,0,.4)}
 .ex-row.dragging .handle{cursor:grabbing}
+
+/* ---------- 내 루틴 ---------- */
+#routineSection .ex-head label{color:var(--rest)}
+#routineList{display:flex; flex-direction:column; gap:6px}
+#routineList:empty{display:none}
+.rt-row{
+  display:flex; align-items:center; gap:8px; background:var(--card2);
+  border:1px solid var(--line); border-radius:10px; padding:8px 10px; cursor:pointer;
+}
+.rt-row:active{border-color:var(--rest)}
+.rt-info{flex:1; min-width:0}
+.rt-name{font-size:.92rem; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.rt-meta{font-size:.72rem; color:var(--dim)}
+
+#toast{
+  position:fixed; left:50%; bottom:24px; transform:translateX(-50%) translateY(8px);
+  background:var(--card2); border:1px solid var(--line); color:var(--text);
+  padding:10px 18px; border-radius:99px; font-size:.85rem; max-width:90vw; text-align:center;
+  opacity:0; pointer-events:none; transition:opacity .25s, transform .25s; z-index:9;
+}
+#toast.show{opacity:1; transform:translateX(-50%) translateY(0)}
