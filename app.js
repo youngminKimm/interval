@@ -5,8 +5,15 @@ const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const LABEL = { prepare: "준비", work: "운동", rest: "휴식", setrest: "세트 휴식", done: "완료" };
 const CIRC = 2 * Math.PI * 45; // ring 둘레
 
+// 대중적인 운동 목록 (탭해서 추가)
+const POPULAR = [
+  "점핑잭", "버피", "스쿼트", "런지", "푸시업", "마운틴 클라이머",
+  "하이니", "플랭크", "크런치", "레그레이즈", "글루트 브릿지", "사이드 플랭크"
+];
+
 // ---------------- 설정 ----------------
 const FIELDS = ["prepare", "work", "rest", "rounds", "sets", "setrest"];
+let exercises = []; // [{name, dur}] — 비어 있으면 단일 "운동" 모드
 
 function readForm() {
   const cfg = {};
@@ -18,10 +25,12 @@ function readForm() {
     el.value = v;
     cfg[f] = v;
   }
+  cfg.exercises = exercises.map(e => ({ name: e.name, dur: e.dur }));
   return cfg;
 }
 function writeForm(cfg) {
   for (const f of FIELDS) if (cfg[f] != null) $("#" + f).value = cfg[f];
+  if (Array.isArray(cfg.exercises)) { exercises = cfg.exercises; renderExList(); }
   updateTotal();
 }
 function saveSettings() {
@@ -39,20 +48,73 @@ function loadSettings() {
   } catch (e) { /* 무시 */ }
 }
 
+// ---------------- 운동 구성 UI ----------------
+function renderExList() {
+  const list = $("#exList");
+  list.innerHTML = "";
+  exercises.forEach((ex, i) => {
+    const row = document.createElement("div");
+    row.className = "ex-row";
+    row.innerHTML =
+      '<button type="button" class="mini" data-act="up" data-i="' + i + '"' + (i === 0 ? " disabled" : "") + '>↑</button>' +
+      '<span class="ex-name"></span>' +
+      '<button type="button" class="mini" data-act="minus" data-i="' + i + '">−</button>' +
+      '<span class="ex-dur">' + ex.dur + '<small>초</small></span>' +
+      '<button type="button" class="mini" data-act="plus" data-i="' + i + '">+</button>' +
+      '<button type="button" class="mini del" data-act="del" data-i="' + i + '">×</button>';
+    row.querySelector(".ex-name").textContent = (i + 1) + ". " + ex.name;
+    list.appendChild(row);
+  });
+  // 목록이 있으면 공통 "운동 (초)" 필드는 의미 없으므로 숨김
+  $("#workField").style.display = exercises.length ? "none" : "";
+}
+function addExercise(name) {
+  name = name.trim();
+  if (!name || exercises.length >= 20) return;
+  exercises.push({ name, dur: parseInt($("#work").value, 10) || 30 });
+  renderExList(); updateTotal(); saveSettings();
+}
+$("#exList").addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-act]");
+  if (!btn) return;
+  const i = parseInt(btn.dataset.i, 10), act = btn.dataset.act;
+  if (act === "del") exercises.splice(i, 1);
+  else if (act === "up" && i > 0) [exercises[i - 1], exercises[i]] = [exercises[i], exercises[i - 1]];
+  else if (act === "minus") exercises[i].dur = Math.max(5, exercises[i].dur - 5);
+  else if (act === "plus") exercises[i].dur = Math.min(600, exercises[i].dur + 5);
+  renderExList(); updateTotal(); saveSettings();
+});
+$("#exAddBtn").addEventListener("click", () => { addExercise($("#exName").value); $("#exName").value = ""; });
+$("#exName").addEventListener("keydown", (e) => {
+  if (e.code === "Enter") { e.preventDefault(); addExercise($("#exName").value); $("#exName").value = ""; }
+});
+// 인기 운동 칩
+POPULAR.forEach(name => {
+  const b = document.createElement("button");
+  b.type = "button"; b.className = "chip"; b.textContent = "+ " + name;
+  b.addEventListener("click", () => addExercise(name));
+  $("#exChips").appendChild(b);
+});
+
 // ---------------- 페이즈 시퀀스 ----------------
 function buildPhases(cfg) {
+  const exs = cfg.exercises && cfg.exercises.length ? cfg.exercises : [{ name: null, dur: cfg.work }];
   const p = [];
   if (cfg.prepare > 0) p.push({ type: "prepare", dur: cfg.prepare, round: 1, set: 1 });
   for (let s = 1; s <= cfg.sets; s++) {
     for (let r = 1; r <= cfg.rounds; r++) {
-      p.push({ type: "work", dur: cfg.work, round: r, set: s });
-      if (r < cfg.rounds && cfg.rest > 0) p.push({ type: "rest", dur: cfg.rest, round: r, set: s });
+      exs.forEach((ex, i) => {
+        p.push({ type: "work", dur: ex.dur, name: ex.name, round: r, set: s, exNo: i + 1, exTotal: exs.length });
+        const lastInSet = r === cfg.rounds && i === exs.length - 1;
+        if (!lastInSet && cfg.rest > 0) p.push({ type: "rest", dur: cfg.rest, round: r, set: s });
+      });
     }
     if (s < cfg.sets && cfg.setrest > 0) p.push({ type: "setrest", dur: cfg.setrest, round: cfg.rounds, set: s });
   }
   return p;
 }
 const totalSec = (phases) => phases.reduce((a, p) => a + p.dur, 0);
+const workName = (ph) => ph.name || "운동";
 
 function fmt(sec) {
   sec = Math.max(0, Math.round(sec));
@@ -69,6 +131,33 @@ function updateTotal() {
 // 시작/재개 시점에 남은 전체 구간의 비프음을 전부 예약해 둔다.
 let ac = null;
 let scheduledNodes = [];
+let silentEl = null;
+
+// iOS 무음(진동) 스위치 대응: 무음 <audio>를 루프 재생해 오디오 세션을
+// 미디어 재생 모드로 전환하면 Web Audio가 무음 스위치를 무시하고 소리를 낸다.
+function silentWavURL() {
+  const rate = 8000, n = rate / 2, size = 44 + n * 2;
+  const b = new DataView(new ArrayBuffer(size));
+  const w = (o, s) => { for (let i = 0; i < s.length; i++) b.setUint8(o + i, s.charCodeAt(i)); };
+  w(0, "RIFF"); b.setUint32(4, size - 8, true); w(8, "WAVEfmt ");
+  b.setUint32(16, 16, true); b.setUint16(20, 1, true); b.setUint16(22, 1, true);
+  b.setUint32(24, rate, true); b.setUint32(28, rate * 2, true);
+  b.setUint16(32, 2, true); b.setUint16(34, 16, true);
+  w(36, "data"); b.setUint32(40, n * 2, true);
+  return URL.createObjectURL(new Blob([b.buffer], { type: "audio/wav" }));
+}
+function ensurePlaybackSession() {
+  try { if (navigator.audioSession) navigator.audioSession.type = "playback"; } catch (e) {}
+  if (!silentEl) {
+    silentEl = new Audio(silentWavURL());
+    silentEl.loop = true;
+    silentEl.setAttribute("playsinline", "");
+  }
+  silentEl.play().catch(() => {});
+}
+function releasePlaybackSession() {
+  if (silentEl) silentEl.pause();
+}
 
 function audioCtx() {
   if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)();
@@ -134,8 +223,10 @@ function speak(text) {
 }
 function announce(ph) {
   if (!ph) { speak("운동 완료! 수고하셨습니다"); return; }
-  if (ph.type === "work") speak(ph.round + "라운드, 운동 시작");
-  else speak(LABEL[ph.type]);
+  if (ph.type === "work") {
+    const prefix = ph.exTotal > 1 && ph.exNo === 1 ? ph.round + "라운드, " : ph.exTotal === 1 ? ph.round + "라운드, " : "";
+    speak(prefix + workName(ph) + " 시작");
+  } else speak(LABEL[ph.type]);
 }
 
 // ---------------- Wake Lock ----------------
@@ -176,7 +267,8 @@ function startWorkout() {
   $("#run").hidden = false;
   $("#totalLabel").textContent = fmt(state.total);
 
-  audioCtx(); // 사용자 제스처 안에서 활성화
+  audioCtx();             // 사용자 제스처 안에서 활성화
+  ensurePlaybackSession(); // iOS 무음 스위치 대응
   enterPhase(0, state.phases[0].dur * 1000);
   resume(true);
 }
@@ -194,6 +286,7 @@ function resume(isStart = false) {
   document.body.classList.remove("paused");
   $("#pauseBtn").textContent = "⏸";
   if (!isStart) state.phaseEndsAt = performance.now() + state.pausedRemain;
+  ensurePlaybackSession();
   scheduleAllAudio();
   if (isStart) announce(state.phases[0]);
   requestWake();
@@ -219,6 +312,7 @@ function stopWorkout() {
   document.body.classList.remove("paused");
   document.body.dataset.phase = "idle";
   releaseWake();
+  releasePlaybackSession();
   $("#run").hidden = true;
   $("#setup").hidden = false;
 }
@@ -252,6 +346,7 @@ function finish() {
   $("#pauseBtn").textContent = "↻";
   announce(null);
   releaseWake();
+  releasePlaybackSession();
 }
 
 function skip(dir) {
@@ -281,16 +376,23 @@ function render(remainMs) {
   remainMs = Math.max(0, remainMs);
   const remainSec = Math.ceil(remainMs / 1000);
 
-  $("#phaseLabel").textContent = LABEL[ph.type];
+  $("#phaseLabel").textContent = ph.type === "work" ? workName(ph) : LABEL[ph.type];
   $("#timeLabel").textContent = ph.dur >= 60 ? fmt(remainSec) : String(remainSec);
 
   const next = state.phases[state.idx + 1];
-  $("#nextLabel").textContent = next ? "다음 · " + LABEL[next.type] + " " + next.dur + "초" : "마지막 구간!";
+  $("#nextLabel").textContent = next
+    ? "다음 · " + (next.type === "work" ? workName(next) : LABEL[next.type]) + " " + next.dur + "초"
+    : "마지막 구간!";
 
-  const cfg = { rounds: Math.max(...state.phases.map(p => p.round)), sets: Math.max(...state.phases.map(p => p.set)) };
-  $("#roundLabel").textContent = "라운드 " + ph.round + "/" + cfg.rounds;
-  $("#setLabel").textContent = "세트 " + ph.set + "/" + cfg.sets;
-  $("#setLabel").style.display = cfg.sets > 1 ? "" : "none";
+  const maxRound = Math.max(...state.phases.map(p => p.round));
+  const maxSet = Math.max(...state.phases.map(p => p.set));
+  $("#roundLabel").textContent = "라운드 " + ph.round + "/" + maxRound;
+  $("#setLabel").textContent = "세트 " + ph.set + "/" + maxSet;
+  $("#setLabel").style.display = maxSet > 1 ? "" : "none";
+  // 서킷 모드일 때 운동 순번 표시
+  const exL = $("#exLabel");
+  if (ph.type === "work" && ph.exTotal > 1) { exL.style.display = ""; exL.textContent = "운동 " + ph.exNo + "/" + ph.exTotal; }
+  else exL.style.display = "none";
 
   // 링: 현재 페이즈 진행률
   const frac = ph.dur > 0 ? remainMs / (ph.dur * 1000) : 0;
@@ -325,7 +427,7 @@ $("#form").addEventListener("input", () => { updateTotal(); saveSettings(); });
 $$(".opt input").forEach(el => el.addEventListener("change", saveSettings));
 
 $$("#presets .chip").forEach(chip => chip.addEventListener("click", () => {
-  writeForm(JSON.parse(chip.dataset.preset));
+  writeForm(JSON.parse(chip.dataset.preset)); // 운동 목록은 유지, 시간만 변경
   saveSettings();
 }));
 
@@ -348,4 +450,5 @@ $("#optSound").addEventListener("change", () => {
 });
 
 loadSettings();
+renderExList();
 updateTotal();

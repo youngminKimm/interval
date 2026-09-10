@@ -119,3 +119,32 @@ body.paused .time-label{animation:blink 1.2s step-end infinite}
 @media (min-width:480px){
   .app{padding-top:40px}
 }
+
+/* ---------- 운동 구성 ---------- */
+.ex-section{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:12px; display:flex; flex-direction:column; gap:10px}
+.ex-head{display:flex; justify-content:space-between; align-items:baseline; gap:8px; flex-wrap:wrap}
+.ex-head label{font-size:.8rem; color:var(--work); font-weight:700}
+.ex-hint{font-size:.7rem; color:var(--dim)}
+#exList{display:flex; flex-direction:column; gap:6px}
+#exList:empty{display:none}
+.ex-row{display:flex; align-items:center; gap:6px; background:var(--card2); border:1px solid var(--line); border-radius:10px; padding:6px 8px}
+.ex-row .ex-name{flex:1; font-size:.92rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.ex-dur{width:46px; text-align:center; font-weight:700; font-variant-numeric:tabular-nums; font-size:.95rem}
+.ex-dur small{font-weight:400; color:var(--dim); font-size:.7em}
+.mini{
+  width:30px; height:30px; border-radius:8px; border:1px solid var(--line);
+  background:var(--card); color:var(--text); font-size:.95rem; cursor:pointer; flex:none;
+  display:inline-flex; align-items:center; justify-content:center; padding:0;
+}
+.mini:active{background:var(--line)}
+.mini.wide{width:auto; padding:0 16px; height:38px; border-radius:10px; background:var(--card2); font-size:.88rem}
+.mini.del{color:#ff7b7b}
+.ex-add{display:flex; gap:8px}
+.ex-add input{
+  flex:1; min-width:0; background:var(--card2); border:1px solid var(--line); border-radius:10px;
+  color:var(--text); padding:8px 12px; font-size:.9rem; outline:none;
+}
+.ex-add input:focus{border-color:var(--work)}
+.ex-chips{display:flex; flex-wrap:wrap; gap:6px}
+.ex-chips .chip{padding:6px 11px; font-size:.78rem}
+.ex-note{margin:0; font-size:.7rem; color:var(--dim)}

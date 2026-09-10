@@ -36,7 +36,7 @@
         </div>
       </div>
 
-      <div class="field" data-phasecolor="work">
+      <div class="field" data-phasecolor="work" id="workField">
         <label for="work">운동 (초)</label>
         <div class="stepper">
           <button type="button" class="step" data-for="work" data-d="-5">−</button>
@@ -82,6 +82,20 @@
       </div>
     </form>
 
+    <div class="ex-section">
+      <div class="ex-head">
+        <label>운동 구성 (선택)</label>
+        <span class="ex-hint">비워두면 모든 구간이 "운동"으로 표시됩니다</span>
+      </div>
+      <div id="exList"></div>
+      <div class="ex-add">
+        <input id="exName" type="text" placeholder="직접 입력 (예: 케틀벨 스윙)" maxlength="20">
+        <button type="button" id="exAddBtn" class="mini wide">추가</button>
+      </div>
+      <div class="ex-chips" id="exChips"></div>
+      <p class="ex-note">1라운드 = 목록 전체를 순서대로 1회 (운동 사이에 휴식)</p>
+    </div>
+
     <div class="total">총 운동 시간 <strong id="totalTime">-</strong></div>
 
     <button id="startBtn" class="big-btn">시작</button>
@@ -99,6 +113,7 @@
     <div class="run-head">
       <span id="setLabel" class="pill"></span>
       <span id="roundLabel" class="pill"></span>
+      <span id="exLabel" class="pill"></span>
     </div>
 
     <div class="ring-wrap">
