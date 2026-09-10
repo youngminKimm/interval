@@ -249,50 +249,14 @@ function scheduleAllAudio() {
 }
 
 // ---------------- 음성 안내 ----------------
-// 미리 생성한 신경망 TTS 클립(sounds/*.mp3) 재생 — 기기와 무관하게 같은 목소리.
-// 매니페스트에 없는 문장(직접 입력한 운동 이름 등)만 기기 TTS로 폴백.
-const clipCache = {};
-function loadClip(f) {
-  if (!clipCache[f]) {
-    const bytes = typeof VOICE_DATA !== "undefined" && VOICE_DATA[f]
-      ? Promise.resolve(Uint8Array.from(atob(VOICE_DATA[f]), c => c.charCodeAt(0)).buffer)
-      : fetch("sounds/" + f).then(r => { if (!r.ok) throw new Error(f); return r.arrayBuffer(); });
-    clipCache[f] = bytes.then(b => audioCtx().decodeAudioData(b));
-  }
-  return clipCache[f];
-}
-let voiceSrcs = [];
+// OS 기본 TTS (기기에 설치된 한국어 목소리 사용)
 function stopVoice() {
-  for (const s of voiceSrcs) { try { s.stop(); } catch (e) {} }
-  voiceSrcs = [];
   if ("speechSynthesis" in window) speechSynthesis.cancel();
 }
-async function speakParts(parts) {
-  if (!$("#optVoice").checked) return;
+function speakParts(parts) {
+  if (!$("#optVoice").checked || !("speechSynthesis" in window)) return;
   stopVoice();
-  const files = parts.map(t => (typeof VOICE_MANIFEST !== "undefined" ? VOICE_MANIFEST[t] : null));
-  if (files.every(Boolean)) {
-    try {
-      const bufs = await Promise.all(files.map(loadClip));
-      const ctx = audioCtx();
-      let t = ctx.currentTime + 0.03;
-      for (const b of bufs) {
-        const s = ctx.createBufferSource();
-        s.buffer = b;
-        s.connect(ctx.destination);
-        s.start(t);
-        t += b.duration + 0.15;
-        voiceSrcs.push(s);
-      }
-      return;
-    } catch (e) { /* 클립 로드 실패 → TTS 폴백 */ }
-  }
-  speakTTS(parts.join(". "));
-}
-function speakTTS(text) {
-  if (!("speechSynthesis" in window)) return;
-  speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(text);
+  const u = new SpeechSynthesisUtterance(parts.join(". "));
   u.lang = "ko-KR";
   const v = speechSynthesis.getVoices().find(v => v.lang && v.lang.toLowerCase().startsWith("ko"));
   if (v) u.voice = v;
@@ -327,13 +291,6 @@ function annParts(ph, idx) {
   return [LABEL[ph.type]];
 }
 function announce(ph) { speakParts(annParts(ph, state.idx)); }
-// 운동에 쓰일 클립 미리 로드
-function preloadVoices() {
-  if (typeof VOICE_MANIFEST === "undefined" || !$("#optVoice").checked) return;
-  const texts = new Set(["운동 완료. 수고하셨습니다"]);
-  state.phases.forEach((ph, i) => annParts(ph, i).forEach(t => texts.add(t)));
-  for (const t of texts) if (VOICE_MANIFEST[t]) loadClip(VOICE_MANIFEST[t]).catch(() => {});
-}
 
 // ---------------- Wake Lock ----------------
 let wakeLock = null;
@@ -375,7 +332,6 @@ function startWorkout() {
 
   audioCtx();             // 사용자 제스처 안에서 활성화
   ensurePlaybackSession(); // iOS 무음 스위치 대응
-  preloadVoices();
   enterPhase(0, state.phases[0].dur * 1000);
   resume(true);
 }
