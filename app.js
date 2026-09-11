@@ -457,6 +457,7 @@ function finish() {
   $("#progressBar").style.width = "100%";
   $("#elapsedLabel").textContent = fmt(state.total);
   $("#pauseBtn").textContent = "↻";
+  addHistory({ at: Date.now(), name: activeRoutineName || null, dur: state.total });
   updateMediaSession(null);
   mediaState("paused");
   announce(null);
@@ -528,9 +529,10 @@ $("#pauseBtn").addEventListener("click", () => {
 $("#nextBtn").addEventListener("click", () => skip(1));
 $("#prevBtn").addEventListener("click", () => skip(-1));
 $("#stopBtn").addEventListener("click", stopWorkout);
-// 타이머 화면 아무 곳이나 탭 → 일시정지/재개 (버튼 제외)
-$("#run").addEventListener("click", (e) => {
-  if (e.target.closest("button") || state.done) return;
+// 운동 중에는 화면 전체 어디를 탭해도 일시정지/재개 (버튼·입력 제외)
+document.addEventListener("click", (e) => {
+  if ($("#run").hidden || state.done) return;
+  if (e.target.closest("button, input, select, a, label")) return;
   state.running ? pause() : resume();
 });
 
@@ -737,9 +739,107 @@ function loadFromHash() {
 }
 window.addEventListener("hashchange", loadFromHash);
 
+
+// ---------------- 운동 기록 (자체 캘린더) ----------------
+function getHistory() {
+  try { return JSON.parse(localStorage.getItem("interval.history")) || []; } catch (e) { return []; }
+}
+function addHistory(entry) {
+  const h = getHistory();
+  h.push(entry);
+  localStorage.setItem("interval.history", JSON.stringify(h));
+  renderCalendar();
+}
+const dayKey = (d) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+let calYM = null;   // 보고 있는 달 {y, m}
+let selDay = null;  // 선택한 날짜 키
+
+function historyByDay() {
+  const map = {};
+  for (const e of getHistory()) {
+    const k = dayKey(new Date(e.at));
+    (map[k] = map[k] || []).push(e);
+  }
+  return map;
+}
+function calcStreak(map) {
+  let streak = 0;
+  const d = new Date();
+  if (!map[dayKey(d)]) d.setDate(d.getDate() - 1); // 오늘 기록이 없으면 어제부터 센다
+  while (map[dayKey(d)]) { streak++; d.setDate(d.getDate() - 1); }
+  return streak;
+}
+function renderCalendar() {
+  const map = historyByDay();
+  const now = new Date();
+  if (!calYM) calYM = { y: now.getFullYear(), m: now.getMonth() };
+  $("#calTitle").textContent = calYM.y + "년 " + (calYM.m + 1) + "월";
+  const grid = $("#calGrid");
+  grid.innerHTML = "";
+  for (const dow of ["일", "월", "화", "수", "목", "금", "토"]) {
+    const el = document.createElement("div");
+    el.className = "cal-dow";
+    el.textContent = dow;
+    grid.appendChild(el);
+  }
+  const firstDow = new Date(calYM.y, calYM.m, 1).getDay();
+  const days = new Date(calYM.y, calYM.m + 1, 0).getDate();
+  for (let i = 0; i < firstDow; i++) grid.appendChild(document.createElement("div"));
+  const todayK = dayKey(now);
+  for (let d = 1; d <= days; d++) {
+    const el = document.createElement("div");
+    el.className = "cal-day";
+    el.textContent = d;
+    const k = dayKey(new Date(calYM.y, calYM.m, d));
+    if (k === todayK) el.classList.add("today");
+    if (map[k]) { el.classList.add("done"); el.dataset.k = k; }
+    if (k === selDay) el.classList.add("sel");
+    grid.appendChild(el);
+  }
+  // 통계: 연속 일수 + 보고 있는 달의 운동 일수/총 시간
+  const monthEntries = getHistory().filter(e => {
+    const d = new Date(e.at);
+    return d.getFullYear() === calYM.y && d.getMonth() === calYM.m;
+  });
+  if (!getHistory().length) {
+    $("#histStats").textContent = "완료한 운동이 여기 기록됩니다";
+  } else {
+    const mDays = new Set(monthEntries.map(e => dayKey(new Date(e.at)))).size;
+    const mSec = monthEntries.reduce((s, e) => s + e.dur, 0);
+    const streak = calcStreak(map);
+    $("#histStats").textContent =
+      (streak ? "🔥 " + streak + "일 연속 · " : "") + (calYM.m + 1) + "월 " + mDays + "일 · " + fmt(mSec);
+  }
+  renderDayDetail(map);
+}
+function renderDayDetail(map) {
+  const box = $("#dayDetail");
+  box.innerHTML = "";
+  const entries = selDay ? map[selDay] : null;
+  if (!entries) { box.style.display = "none"; return; }
+  box.style.display = "";
+  for (const e of entries) {
+    const d = new Date(e.at);
+    const row = document.createElement("div");
+    row.className = "hist-row";
+    row.textContent = String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0")
+      + " · " + (e.name || "빠른 운동") + " · " + fmt(e.dur);
+    box.appendChild(row);
+  }
+}
+$("#calGrid").addEventListener("click", (e) => {
+  const el = e.target.closest(".cal-day.done");
+  if (!el) return;
+  selDay = selDay === el.dataset.k ? null : el.dataset.k;
+  renderCalendar();
+});
+$("#calPrev").addEventListener("click", () => { calYM.m--; if (calYM.m < 0) { calYM.m = 11; calYM.y--; } selDay = null; renderCalendar(); });
+$("#calNext").addEventListener("click", () => { calYM.m++; if (calYM.m > 11) { calYM.m = 0; calYM.y++; } selDay = null; renderCalendar(); });
+
 loadSettings();
 renderExList();
 renderRoutines();
+renderCalendar();
 loadFromHash();
 updateTotal();
 
