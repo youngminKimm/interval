@@ -209,3 +209,15 @@ body.paused .time-label{animation:blink 1.2s step-end infinite}
 .cal-day.sel{border-color:var(--work)}
 #dayDetail{display:flex; flex-direction:column; gap:4px}
 .hist-row{font-size:.8rem; color:var(--dim); background:var(--card2); border-radius:8px; padding:7px 10px}
+
+/* ---------- 완료 요약 ---------- */
+#done{text-align:center; padding-top:24px}
+.done-emoji{font-size:3.2rem}
+.done-hero h2{margin:8px 0 0; font-size:1.6rem}
+.done-sub{margin:6px 0 0; color:var(--work); font-size:.92rem; min-height:1.2em}
+.done-card{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:4px 16px; text-align:left}
+.done-row{display:flex; justify-content:space-between; align-items:baseline; gap:12px; padding:11px 0; border-bottom:1px solid var(--line); font-size:.92rem}
+.done-row:last-child{border-bottom:none}
+.done-row span{color:var(--dim); flex:none}
+.done-row strong{font-variant-numeric:tabular-nums; text-align:right}
+.big-btn.ghost{background:transparent; border:1px solid var(--line); color:var(--text); font-weight:600}

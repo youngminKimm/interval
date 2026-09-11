@@ -371,6 +371,7 @@ function startWorkout() {
   saveSettings();
 
   $("#setup").hidden = true;
+  $("#done").hidden = true;
   $("#run").hidden = false;
   $("#totalLabel").textContent = fmt(state.total);
 
@@ -427,6 +428,7 @@ function stopWorkout() {
   releasePlaybackSession();
   mediaState("none");
   $("#run").hidden = true;
+  $("#done").hidden = true;
   $("#setup").hidden = false;
 }
 
@@ -450,16 +452,27 @@ function finish() {
   state.running = false;
   state.done = true;
   document.body.dataset.phase = "done";
-  $("#phaseLabel").textContent = "완료 🎉";
-  $("#timeLabel").textContent = fmt(state.total);
-  $("#nextLabel").textContent = "수고하셨습니다!";
-  $("#ringFg").style.strokeDashoffset = 0;
-  $("#progressBar").style.width = "100%";
-  $("#elapsedLabel").textContent = fmt(state.total);
-  $("#pauseBtn").textContent = "↻";
   addHistory({ at: Date.now(), name: activeRoutineName || null, dur: state.total });
+
+  // 요약 채우기
+  const workSec = state.phases.filter(p => p.type === "work").reduce((s, p) => s + p.dur, 0);
+  const restSec = state.phases.filter(p => p.type === "rest" || p.type === "setrest").reduce((s, p) => s + p.dur, 0);
+  const cfg = readForm();
+  const exN = cfg.exercises.length;
+  $("#doneName").textContent = activeRoutineName || "빠른 운동";
+  $("#doneTotal").textContent = fmt(state.total);
+  $("#doneWork").textContent = fmt(workSec);
+  $("#doneRest").textContent = fmt(restSec);
+  $("#doneConfig").textContent = (exN ? "운동 " + exN + "개 · " : "") + cfg.rounds + "라운드" + (cfg.sets > 1 ? " × " + cfg.sets + "세트" : "");
+  const now = new Date();
+  $("#doneAt").textContent = String(now.getHours()).padStart(2, "0") + ":" + String(now.getMinutes()).padStart(2, "0");
+  const streak = calcStreak(historyByDay());
+  $("#doneStreak").textContent = streak > 1 ? "🔥 " + streak + "일 연속 운동 중!" : "수고하셨습니다!";
+
+  $("#run").hidden = true;
+  $("#done").hidden = false;
   updateMediaSession(null);
-  mediaState("paused");
+  mediaState("none");
   announce(null);
   releaseWake();
   releasePlaybackSession();
@@ -529,6 +542,8 @@ $("#pauseBtn").addEventListener("click", () => {
 $("#nextBtn").addEventListener("click", () => skip(1));
 $("#prevBtn").addEventListener("click", () => skip(-1));
 $("#stopBtn").addEventListener("click", stopWorkout);
+$("#doneBtn").addEventListener("click", stopWorkout);   // 요약 확인 후 설정 화면으로
+$("#againBtn").addEventListener("click", () => { $("#done").hidden = true; startWorkout(); });
 // 운동 중에는 화면 전체 어디를 탭해도 일시정지/재개 (버튼·입력 제외)
 document.addEventListener("click", (e) => {
   if ($("#run").hidden || state.done) return;

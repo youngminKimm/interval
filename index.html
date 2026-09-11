@@ -170,6 +170,26 @@
     <p class="hint">화면을 탭하면 일시정지 / 재개</p>
   </section>
 
+
+  <!-- ============ 완료 요약 화면 ============ -->
+  <section id="done" class="screen" hidden>
+    <div class="done-hero">
+      <div class="done-emoji">🎉</div>
+      <h2>운동 완료!</h2>
+      <p class="done-sub" id="doneStreak"></p>
+    </div>
+    <div class="done-card">
+      <div class="done-row"><span>루틴</span><strong id="doneName"></strong></div>
+      <div class="done-row"><span>총 시간</span><strong id="doneTotal"></strong></div>
+      <div class="done-row"><span>운동 시간</span><strong id="doneWork"></strong></div>
+      <div class="done-row"><span>휴식 시간</span><strong id="doneRest"></strong></div>
+      <div class="done-row"><span>구성</span><strong id="doneConfig"></strong></div>
+      <div class="done-row"><span>완료 시각</span><strong id="doneAt"></strong></div>
+    </div>
+    <button type="button" id="doneBtn" class="big-btn">완료</button>
+    <button type="button" id="againBtn" class="big-btn ghost">한 번 더</button>
+  </section>
+
   <div id="toast" role="status"></div>
 </main>
 
