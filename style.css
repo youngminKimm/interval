@@ -4,7 +4,7 @@
   --prepare:#f5b942; --work:#3ddc84; --rest:#4aa8ff; --setrest:#b07aff; --done:#e8e8e8;
   --accent:var(--work);
 }
-*{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent; touch-action:manipulation}
 html,body{margin:0; padding:0}
 body{
   background:var(--bg); color:var(--text);
