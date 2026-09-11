@@ -322,6 +322,33 @@ document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible" && state.running) requestWake();
 });
 
+// ---------------- Media Session (잠금화면 컨트롤) ----------------
+function mediaState(st) {
+  if ("mediaSession" in navigator) { try { navigator.mediaSession.playbackState = st; } catch (e) {} }
+}
+function updateMediaSession(ph) {
+  if (!("mediaSession" in navigator)) return;
+  const title = !ph ? "운동 완료 🎉"
+    : ph.type === "work" ? workName(ph) + " — " + ph.round + "라운드"
+    : LABEL[ph.type];
+  try {
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title,
+      artist: "인터벌 타이머" + (activeRoutineName ? " · " + activeRoutineName : ""),
+      artwork: [{ src: "icons/icon-512.png", sizes: "512x512", type: "image/png" }],
+    });
+  } catch (e) {}
+}
+if ("mediaSession" in navigator) {
+  const running = () => !$("#run").hidden && !state.done;
+  try {
+    navigator.mediaSession.setActionHandler("play", () => { if (running() && !state.running) resume(); });
+    navigator.mediaSession.setActionHandler("pause", () => { if (state.running) pause(); });
+    navigator.mediaSession.setActionHandler("nexttrack", () => { if (running()) skip(1); });
+    navigator.mediaSession.setActionHandler("previoustrack", () => { if (running()) skip(-1); });
+  } catch (e) {}
+}
+
 // ---------------- 타이머 상태 ----------------
 const state = {
   phases: [], idx: 0,
@@ -358,6 +385,7 @@ function enterPhase(idx, remainMs) {
   state.phaseEndsAt = performance.now() + remainMs;
   state.elapsedBefore = state.phases.slice(0, idx).reduce((a, p) => a + p.dur, 0);
   document.body.dataset.phase = state.phases[idx].type;
+  updateMediaSession(state.phases[idx]);
   render();
 }
 
@@ -365,6 +393,7 @@ function resume(isStart = false) {
   state.running = true;
   document.body.classList.remove("paused");
   $("#pauseBtn").textContent = "⏸";
+  mediaState("playing");
   if (!isStart) state.phaseEndsAt = performance.now() + state.pausedRemain;
   ensurePlaybackSession();
   scheduleAllAudio();
@@ -379,6 +408,7 @@ function pause() {
   state.pausedRemain = Math.max(0, state.phaseEndsAt - performance.now());
   document.body.classList.add("paused");
   $("#pauseBtn").textContent = "▶";
+  mediaState("paused");
   cancelScheduledAudio();
   stopVoice();
   clearInterval(state.timer);
@@ -395,6 +425,7 @@ function stopWorkout() {
   document.body.dataset.phase = "idle";
   releaseWake();
   releasePlaybackSession();
+  mediaState("none");
   $("#run").hidden = true;
   $("#setup").hidden = false;
 }
@@ -426,6 +457,8 @@ function finish() {
   $("#progressBar").style.width = "100%";
   $("#elapsedLabel").textContent = fmt(state.total);
   $("#pauseBtn").textContent = "↻";
+  updateMediaSession(null);
+  mediaState("paused");
   announce(null);
   releaseWake();
   releasePlaybackSession();
@@ -495,6 +528,11 @@ $("#pauseBtn").addEventListener("click", () => {
 $("#nextBtn").addEventListener("click", () => skip(1));
 $("#prevBtn").addEventListener("click", () => skip(-1));
 $("#stopBtn").addEventListener("click", stopWorkout);
+// 타이머 화면 아무 곳이나 탭 → 일시정지/재개 (버튼 제외)
+$("#run").addEventListener("click", (e) => {
+  if (e.target.closest("button") || state.done) return;
+  state.running ? pause() : resume();
+});
 
 $$(".step").forEach(btn => btn.addEventListener("click", () => {
   const input = $("#" + btn.dataset.for);
@@ -704,3 +742,8 @@ renderExList();
 renderRoutines();
 loadFromHash();
 updateTotal();
+
+// PWA: 서비스워커 등록 (네트워크 우선이라 배포 후 새로고침이면 항상 최신)
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js").catch(() => {});
+}
